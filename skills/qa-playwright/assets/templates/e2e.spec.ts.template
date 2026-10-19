@@ -1,0 +1,64 @@
+import { test, expect } from '../../fixtures/qa';
+
+// Template: copy to qa/tests/e2e/<feature>.spec.ts and adapt.
+// Title rules: [REQ-ID] first, then a kind tag (@happy @boundary @error), then a plain description.
+// One requirement should have at least one @boundary and one @error test (or a documented exemption).
+
+test.describe('Login', () => {
+  test('[FR-001] @happy @blackbox signs in with valid credentials', async ({ page, qa }) => {
+    const user = { email: 'qa.user@example.com', password: 'Correct-Horse-9' }; // test account, never real secrets
+    qa.data({ ...user, expectedLanding: '/dashboard' });
+
+    await qa.step('Open the login page', async () => {
+      await page.goto('/login');
+      await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    });
+    await qa.step('Enter valid credentials', async () => {
+      await page.getByLabel('Email').fill(user.email);
+      await page.getByLabel('Password').fill(user.password);
+    });
+    await qa.step('Submit and land on the dashboard', async () => {
+      await page.getByRole('button', { name: 'Sign in' }).click();
+      await expect(page).toHaveURL(/dashboard/);
+    });
+  });
+
+  // Boundary: test each edge of every input - empty, min, max, max+1, special chars, unicode.
+  for (const [label, email] of [
+    ['empty', ''],
+    ['254 chars (max allowed)', `${'a'.repeat(242)}@example.com`],
+    ['255 chars (max + 1)', `${'a'.repeat(243)}@example.com`],
+  ] as const) {
+    test(`[FR-001] @boundary @blackbox email length: ${label}`, async ({ page, qa }) => {
+      qa.data({ email: email.length > 40 ? `${email.slice(0, 20)}… (${email.length} chars)` : email, rule: 'max 254 chars' });
+      await qa.step('Open the login page', async () => { await page.goto('/login'); });
+      await qa.step('Submit the email', async () => {
+        await page.getByLabel('Email').fill(email);
+        await page.getByLabel('Password').fill('Correct-Horse-9');
+        await page.getByRole('button', { name: 'Sign in' }).click();
+      });
+      await qa.step('Check the outcome for this length', async () => {
+        // Replace with the app's real expectation for each case.
+        await expect(page).toHaveURL(/login/);
+      });
+    });
+  }
+
+  // Error handling: bad input, server failure, offline, expired session, 4xx/5xx, double submit.
+  test('[FR-001] @error @blackbox shows a clear message when the server fails', async ({ page, qa }) => {
+    qa.data({ simulatedResponse: '500 Internal Server Error' });
+    await qa.step('Make the login API fail', async () => {
+      await page.route('**/api/login', (route) => route.fulfill({ status: 500, body: '{}' }));
+      await page.goto('/login');
+    });
+    await qa.step('Submit the form', async () => {
+      await page.getByLabel('Email').fill('qa.user@example.com');
+      await page.getByLabel('Password').fill('Correct-Horse-9');
+      await page.getByRole('button', { name: 'Sign in' }).click();
+    });
+    await qa.step('See a friendly error and stay on the page', async () => {
+      await expect(page.getByRole('alert')).toContainText(/try again/i);
+      await expect(page).toHaveURL(/login/);
+    });
+  });
+});

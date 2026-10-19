@@ -1,0 +1,21 @@
+import { describe, expect, it } from 'vitest';
+// import { calculateDiscount } from '../../../src/pricing';   // white-box: import the code under test directly
+
+// Template: copy to qa/tests/unit/<module>.test.ts.
+// Use for logic with no reachable UI/API path, and to drive branch coverage (see vitest thresholds).
+const calculateDiscount = (total: number) => {
+  if (total < 0) throw new RangeError('total must be >= 0');
+  return total >= 100 ? total * 0.1 : 0;
+};
+
+describe('calculateDiscount', () => {
+  it('[FR-030] @whitebox @happy gives 10% at or above 100', () => {
+    expect(calculateDiscount(200)).toBe(20);
+  });
+  it.each([[99.99, 0], [100, 10], [0, 0]])('[FR-030] @whitebox @boundary total %s -> discount %s', (total, discount) => {
+    expect(calculateDiscount(total)).toBeCloseTo(discount);
+  });
+  it('[FR-030] @whitebox @error rejects negative totals', () => {
+    expect(() => calculateDiscount(-1)).toThrow(RangeError);
+  });
+});

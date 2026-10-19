@@ -1,0 +1,38 @@
+import { apiTest as test, expect } from '../../fixtures/qa';
+
+// Template: copy to qa/tests/api/<feature>.spec.ts. Use when a flow has no UI (or the UI cannot reach it).
+// API tests cannot take screenshots, so qa.response() records request + response as step evidence.
+
+test.describe('Orders API', () => {
+  test('[FR-020] @happy @blackbox creates an order', async ({ request, qa }) => {
+    const payload = { sku: 'ABC-1', quantity: 1 };
+    qa.data({ endpoint: 'POST /api/orders', ...payload });
+    await qa.step('Create the order', async () => {
+      const res = await request.post('/api/orders', { data: payload });
+      await qa.response('POST /api/orders', res, payload);
+      expect(res.status()).toBe(201);
+      expect(await res.json()).toMatchObject({ sku: 'ABC-1', quantity: 1 });
+    });
+  });
+
+  for (const quantity of [0, 1, 999, 1000]) {
+    test(`[FR-020] @boundary @blackbox quantity ${quantity} (allowed 1-999)`, async ({ request, qa }) => {
+      const valid = quantity >= 1 && quantity <= 999;
+      qa.data({ quantity, allowed: '1-999', expected: valid ? 201 : 400 });
+      await qa.step(`POST quantity ${quantity}`, async () => {
+        const res = await request.post('/api/orders', { data: { sku: 'ABC-1', quantity } });
+        await qa.response(`quantity ${quantity}`, res, { sku: 'ABC-1', quantity });
+        expect(res.status()).toBe(valid ? 201 : 400);
+      });
+    });
+  }
+
+  test('[FR-020] @error @blackbox rejects a malformed body', async ({ request, qa }) => {
+    qa.data({ body: 'not-json', expectedStatus: 400 });
+    await qa.step('POST invalid JSON', async () => {
+      const res = await request.post('/api/orders', { headers: { 'content-type': 'application/json' }, data: 'not-json' });
+      await qa.response('invalid body', res, 'not-json');
+      expect(res.status()).toBe(400);
+    });
+  });
+});

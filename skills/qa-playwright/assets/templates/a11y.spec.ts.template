@@ -1,0 +1,37 @@
+import { test, expect } from '../../fixtures/qa';
+import { scanA11y } from '../../helpers/a11y';
+
+// Template: copy to qa/tests/a11y/<area>.spec.ts. Cover EVERY page and every meaningful state
+// (open menus, dialogs, validation errors, empty/loaded states, mobile viewport).
+// Each qa.step() screenshots the page; scanA11y() attaches the axe results to the PDF report.
+
+const pages = [
+  { id: 'A11Y-001', name: 'Home', path: '/' },
+  { id: 'A11Y-002', name: 'Login', path: '/login' },
+];
+
+for (const p of pages) {
+  test(`[${p.id}] @a11y ${p.name} page has no WCAG violations`, async ({ page, qa }) => {
+    qa.data({ route: p.path, standard: 'WCAG 2.2 AA + best practices' });
+    await qa.step(`Open ${p.name}`, async () => { await page.goto(p.path); });
+    await qa.step(`Scan ${p.name} with axe`, async () => { await scanA11y(qa, page, p.name); });
+  });
+}
+
+test('[A11Y-002] @a11y login error state is accessible', async ({ page, qa }) => {
+  qa.data({ route: '/login', state: 'validation errors visible' });
+  await qa.step('Open the login page', async () => { await page.goto('/login'); });
+  await qa.step('Submit the empty form to trigger errors', async () => {
+    await page.getByRole('button', { name: 'Sign in' }).click();
+  });
+  await qa.step('Scan the error state', async () => { await scanA11y(qa, page, 'Login - errors'); });
+});
+
+test('[A11Y-003] @a11y login can be completed with the keyboard only', async ({ page, qa }) => {
+  qa.data({ keys: 'Tab, Tab, Enter' });
+  await qa.step('Open the login page', async () => { await page.goto('/login'); });
+  await qa.step('Tab to the first field', async () => {
+    await page.keyboard.press('Tab');
+    await expect(page.getByLabel('Email')).toBeFocused();
+  });
+});
