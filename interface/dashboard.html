@@ -49,7 +49,7 @@ button.danger{background:none;border:1px solid var(--bad);color:var(--bad);borde
 pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;font:13px/1.45 ui-monospace,Menlo,monospace;max-height:280px;overflow:auto;margin:6px 0}
 .tl{max-height:260px;overflow:auto;font-size:13px;border-left:2px solid var(--line);padding-left:10px}
 .tl div{padding:1px 0;color:var(--muted)} .tl .agent-k{color:var(--ink)}
-.files a{display:inline-block;margin:3px 8px 3px 0;color:var(--accent)}
+.file{display:flex;align-items:center;gap:10px;padding:4px 0;border-bottom:1px solid var(--line)}.file span{flex:1;overflow:hidden;text-overflow:ellipsis}.file small{color:var(--muted)}.file a{color:var(--accent)}.file a.dl{border:1px solid var(--accent);border-radius:6px;padding:1px 8px;text-decoration:none}
 .empty{color:var(--muted)}
 .warn{background:var(--panel);border:1px solid var(--warn);color:var(--warn);border-radius:8px;padding:8px 10px;margin-bottom:12px;font-size:13px}
 </style>
@@ -122,7 +122,13 @@ async function refresh() {
 async function showDetail(id) {
   const d = await api('/api/runs/' + encodeURIComponent(id));
   const cost = d.result?.costUsd != null ? ` · $${d.result.costUsd.toFixed(2)}` : '';
-  const files = d.reports.map((f) => `<a href="/api/runs/${encodeURIComponent(id)}/file?path=${encodeURIComponent(f.path)}" target="_blank" rel="noopener">${esc(f.path.replace(/^qa\//, ''))}</a>`).join('');
+  const fileUrl = (f, dl) => `/api/runs/${encodeURIComponent(id)}/file?path=${encodeURIComponent(f.path)}${dl ? '&download=1' : ''}`;
+  const files = d.reports.map((f) => {
+    const downloadable = /\.(pdf|csv)$/.test(f.path);
+    return `<div class="file"><span>${esc(f.path.replace(/^qa\//, ''))}</span> <small>${(f.bytes / 1024).toFixed(0)} KB</small>
+      <a href="${fileUrl(f, false)}" target="_blank" rel="noopener">View</a>
+      ${downloadable ? `<a class="dl" href="${fileUrl(f, true)}" download>Download</a>` : ''}</div>`;
+  }).join('');
   const bugs = d.bugs ? `${d.bugs.total} bugs (${Object.entries(d.bugs.bySeverity).map(([k, v]) => `${esc(k)}: ${v}`).join(', ')})` : 'no bug data yet';
   $('detail').innerHTML = `
     <div class="card">

@@ -43,7 +43,7 @@ For a site URL the run works in `~/.qa-agent-team-ui/workspaces/<site>/`.
 node interface/server.mjs --web
 ```
 
-Open http://127.0.0.1:4747.
+Open http://127.0.0.1:4747. Each output file has a View link, and PDFs and CSVs also get a Download button.
 
 ## Permissions
 
