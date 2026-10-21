@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QA Agent Team</title>
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#fff; --ink:#15181d; --muted:#5d6572; --line:#dfe3e9;
+  --accent:#0b7a75; --accent-ink:#fff; --ok:#1a8f4c; --bad:#c62828; --warn:#b7791f; --run:#2f6fde;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1116; --panel:#171b22; --ink:#e8ecf1; --muted:#97a1af; --line:#2a313b;
+    --accent:#3cc4bb; --accent-ink:#06201e; --ok:#46c27b; --bad:#ff7b7b; --warn:#e7b15c; --run:#6da2ff;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1116; --panel:#171b22; --ink:#e8ecf1; --muted:#97a1af; --line:#2a313b;
+  --accent:#3cc4bb; --accent-ink:#06201e; --ok:#46c27b; --bad:#ff7b7b; --warn:#e7b15c; --run:#6da2ff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:16px;margin:0;flex:1}
+header button{background:none;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:4px 10px;cursor:pointer}
+main{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px 20px;max-width:1200px;margin:0 auto}
+@media(max-width:800px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input,select,textarea{width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit}
+textarea{min-height:64px;resize:vertical}
+button.primary{margin-top:12px;width:100%;background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:9px;font:inherit;font-weight:600;cursor:pointer}
+button.primary:disabled{opacity:.5;cursor:default}
+button.danger{background:none;border:1px solid var(--bad);color:var(--bad);border-radius:8px;padding:4px 12px;cursor:pointer}
+.runs{list-style:none;margin:16px 0 0;padding:0}
+.runs li{padding:9px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;cursor:pointer;background:var(--panel)}
+.runs li.sel{border-color:var(--accent)}
+.runs .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.runs .s{font-size:12px;color:var(--muted)}
+.pill{display:inline-block;font-size:11px;font-weight:600;border-radius:99px;padding:1px 8px;border:1px solid currentColor}
+.running{color:var(--run)}.succeeded,.done{color:var(--ok)}.failed,.interrupted{color:var(--bad)}.cancelled{color:var(--warn)}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.row h2{margin:0}
+.agents{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.agent{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px}
+.agent small{display:block;color:var(--muted)}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;font:13px/1.45 ui-monospace,Menlo,monospace;max-height:280px;overflow:auto;margin:6px 0}
+.tl{max-height:260px;overflow:auto;font-size:13px;border-left:2px solid var(--line);padding-left:10px}
+.tl div{padding:1px 0;color:var(--muted)} .tl .agent-k{color:var(--ink)}
+.files a{display:inline-block;margin:3px 8px 3px 0;color:var(--accent)}
+.empty{color:var(--muted)}
+.warn{background:var(--panel);border:1px solid var(--warn);color:var(--warn);border-radius:8px;padding:8px 10px;margin-bottom:12px;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>QA Agent Team</h1>
+  <button id="theme" aria-label="Toggle theme">Theme</button>
+</header>
+<main>
+  <section>
+    <div class="card">
+      <h2>New run</h2>
+      <div id="health"></div>
+      <form id="form">
+        <label for="target">Project folder or site URL</label>
+        <input id="target" required placeholder="/Users/you/app  or  https://example.com">
+        <label for="mode">Mode</label>
+        <select id="mode"><option value="full">Full QA</option><option value="update">Update (scan for changes)</option></select>
+        <label for="notes">Notes (optional)</label>
+        <textarea id="notes" placeholder="It runs at http://localhost:3000, start it with npm run dev"></textarea>
+        <button class="primary" id="go">Start run</button>
+        <div id="formerr" class="empty" style="color:var(--bad)"></div>
+      </form>
+    </div>
+    <ul class="runs" id="runs"></ul>
+  </section>
+  <section id="detail"><div class="card empty">Select a run, or start one.</div></section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let selected = null;
+const root = document.documentElement;
+try { const t = localStorage.getItem('qa-theme'); if (t) root.dataset.theme = t; } catch {}
+$('theme').onclick = () => {
+  const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  root.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('qa-theme', root.dataset.theme); } catch {}
+};
+
+const api = (p, opts = {}) => fetch(p, { ...opts, headers: { 'x-qa-ui': '1', 'content-type': 'application/json' } })
+  .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.error || r.status); return b; });
+
+$('form').onsubmit = async (e) => {
+  e.preventDefault();
+  $('go').disabled = true; $('formerr').textContent = '';
+  try {
+    const r = await api('/api/runs', { method: 'POST', body: JSON.stringify({ target: $('target').value.trim(), mode: $('mode').value, notes: $('notes').value.trim() }) });
+    selected = r.id; await refresh();
+  } catch (err) { $('formerr').textContent = err.message; }
+  $('go').disabled = false;
+};
+
+async function refresh() {
+  try {
+    const h = await api('/api/health');
+    $('health').innerHTML = (h.agentsInstalled ? '' : '<div class="warn">qa-lead agent not installed. Run ./install.sh from the repo root.</div>')
+      + (h.loggedIn === false ? `<div class="warn">Claude Code CLI is not logged in. Run <code>${esc(h.claudeBin)} auth login</code> in a terminal.</div>` : '');
+  } catch {}
+  const runs = await api('/api/runs');
+  if (!selected && runs[0]) selected = runs[0].id;
+  $('runs').innerHTML = runs.map((r) => `<li data-id="${esc(r.id)}" class="${r.id === selected ? 'sel' : ''}">
+    <div class="t">${esc(r.target)}</div>
+    <div class="s"><span class="pill ${esc(r.status)}">${esc(r.status)}</span> ${esc(r.mode)} · ${new Date(r.startedAt).toLocaleString()}</div></li>`).join('');
+  document.querySelectorAll('.runs li').forEach((li) => li.onclick = () => { selected = li.dataset.id; refresh(); });
+  if (selected) await showDetail(selected);
+}
+
+async function showDetail(id) {
+  const d = await api('/api/runs/' + encodeURIComponent(id));
+  const cost = d.result?.costUsd != null ? ` · $${d.result.costUsd.toFixed(2)}` : '';
+  const files = d.reports.map((f) => `<a href="/api/runs/${encodeURIComponent(id)}/file?path=${encodeURIComponent(f.path)}" target="_blank" rel="noopener">${esc(f.path.replace(/^qa\//, ''))}</a>`).join('');
+  const bugs = d.bugs ? `${d.bugs.total} bugs (${Object.entries(d.bugs.bySeverity).map(([k, v]) => `${esc(k)}: ${v}`).join(', ')})` : 'no bug data yet';
+  $('detail').innerHTML = `
+    <div class="card">
+      <div class="row"><h2 style="flex:1">${esc(d.target)}</h2>
+        <span class="pill ${esc(d.status)}">${esc(d.status)}</span>
+        ${d.status === 'running' ? '<button class="danger" id="cancel">Cancel</button>' : ''}</div>
+      <div class="empty">${esc(d.mode)} run · ${d.toolCalls} tool calls${cost}<br>Working in ${esc(d.cwd)}</div>
+      <div class="agents">${d.agents.length ? d.agents.map((a) => `<div class="agent"><span class="${esc(a.status)}">●</span> ${esc(a.agent)}<small>${esc(a.description)}</small></div>`).join('') : '<span class="empty">No agents started yet.</span>'}</div>
+      ${d.error ? `<h2>Error</h2><pre>${esc(d.error)}</pre>` : ''}
+      <h2>Latest message</h2><pre>${esc(d.lastMessage) || '(none yet)'}</pre>
+    </div>
+    <div class="card" style="margin-top:12px"><h2>Outputs</h2>
+      <div class="files">${files || '<span class="empty">No report files yet.</span>'}</div>
+      <div class="empty" style="margin-top:6px">${bugs}</div>
+      ${d.coverage ? `<h2 style="margin-top:12px">Coverage</h2><pre>${esc(d.coverage)}</pre>` : ''}
+    </div>
+    <div class="card" style="margin-top:12px"><h2>Activity</h2>
+      <div class="tl">${d.timeline.slice().reverse().map((t) => `<div class="${t.kind === 'agent' ? 'agent-k' : ''}">${new Date(t.at).toLocaleTimeString()} ${esc(t.text)}</div>`).join('') || '<span class="empty">Nothing yet.</span>'}</div>
+    </div>`;
+  const c = $('cancel');
+  if (c) c.onclick = async () => { await api(`/api/runs/${encodeURIComponent(id)}/cancel`, { method: 'POST' }); refresh(); };
+}
+
+refresh();
+setInterval(() => refresh().catch(() => {}), 3000);
+</script>
+</body>
+</html>
