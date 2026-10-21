@@ -65,5 +65,6 @@ The dashboard listens on 127.0.0.1 only, rejects other Host and Origin headers, 
 |---|---|
 | Tools don't appear in Claude desktop | Re-run `setup.mjs --write` and restart the app. Check the entry exists in `claude_desktop_config.json`. |
 | `qa-lead agent not found` | Run `./install.sh`. |
+| `Claude Code CLI is not logged in` | Run `claude auth login` in a terminal. The CLI signs in separately from the desktop app. |
 | Run fails straight away | Open the run in the dashboard and read the error. Usually `claude` isn't signed in or `QA_UI_CLAUDE_BIN` is wrong. |
 | Dashboard port busy | Another instance owns it and is shared. Or set `QA_UI_PORT`. |

@@ -9,7 +9,7 @@
 // detached process, so a run survives this server restarting. State lives in
 // ~/.qa-agent-team-ui/runs/<id>/.
 
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -46,6 +46,18 @@ function findClaude() {
   return 'claude';
 }
 const CLAUDE_BIN = findClaude();
+
+// true / false, or null when the CLI can't tell us (then we don't block the run).
+function claudeLoggedIn() {
+  try {
+    const out = execFileSync(CLAUDE_BIN, ['auth', 'status'], { encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'ignore'] });
+    const j = JSON.parse(out);
+    return typeof j.loggedIn === 'boolean' ? j.loggedIn : null;
+  } catch (e) {
+    // `auth status` may exit non-zero when logged out but still print JSON.
+    try { const j = JSON.parse(e.stdout || ''); return typeof j.loggedIn === 'boolean' ? j.loggedIn : null; } catch { return null; }
+  }
+}
 
 function agentsInstalled() {
   const dirs = [path.join(HOME, '.claude/agents')];
@@ -88,6 +100,7 @@ function buildPrompt({ target, mode, notes, kind }) {
 function startRun({ target, mode = 'full', notes = '' }) {
   if (!target) throw new Error('target is required (project path or URL)');
   if (!agentsInstalled()) throw new Error('qa-lead agent not found in ~/.claude/agents. Run ./install.sh from the repo root first.');
+  if (claudeLoggedIn() === false) throw new Error(`Claude Code CLI is not logged in, so runs would fail immediately. Run "${CLAUDE_BIN} auth login" in a terminal, then try again.`);
   const { cwd, kind } = resolveTarget(target);
   const id = newId();
   const dir = runDir(id);
@@ -301,7 +314,7 @@ function handleHttp(req, res) {
     return res.end(fs.readFileSync(path.join(HERE, 'dashboard.html')));
   }
   if (req.method === 'GET' && p === '/api/health') {
-    return json(res, 200, { agentsInstalled: agentsInstalled(), claudeBin: CLAUDE_BIN, permissionMode: PERMISSION_MODE, allowedTools: ALLOWED_TOOLS });
+    return json(res, 200, { agentsInstalled: agentsInstalled(), loggedIn: claudeLoggedIn(), claudeBin: CLAUDE_BIN, permissionMode: PERMISSION_MODE, allowedTools: ALLOWED_TOOLS });
   }
   if (req.method === 'GET' && p === '/api/runs') return json(res, 200, listRuns());
   let m;

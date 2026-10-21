@@ -107,7 +107,8 @@ $('form').onsubmit = async (e) => {
 async function refresh() {
   try {
     const h = await api('/api/health');
-    $('health').innerHTML = h.agentsInstalled ? '' : '<div class="warn">qa-lead agent not installed. Run ./install.sh from the repo root.</div>';
+    $('health').innerHTML = (h.agentsInstalled ? '' : '<div class="warn">qa-lead agent not installed. Run ./install.sh from the repo root.</div>')
+      + (h.loggedIn === false ? `<div class="warn">Claude Code CLI is not logged in. Run <code>${esc(h.claudeBin)} auth login</code> in a terminal.</div>` : '');
   } catch {}
   const runs = await api('/api/runs');
   if (!selected && runs[0]) selected = runs[0].id;
