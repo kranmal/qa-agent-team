@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QA Agent Team Demo</title>
+<meta name="description" content="Interactive, simulated walkthrough of the qa-agent-team Claude Code agents: plan, write, run and report a full QA suite.">
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#15181d; --muted:#5d6572; --line:#dfe3e9;
+  --accent:#0b7a75; --accent-ink:#ffffff; --term:#0f1419; --term-ink:#d6dde6;
+  --lead:#6d4aff; --scan:#d9822b; --writer:#0b7a75; --runner:#2f6fde; --report:#c2410c;
+  --ok:#1a8f4c; --bad:#c62828; --warn:#b7791f;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    --bg:#0e1116; --panel:#171b22; --ink:#e8ecf1; --muted:#97a1af; --line:#2a313b;
+    --accent:#3cc4bb; --accent-ink:#06201e; --term:#090c10; --term-ink:#cfd8e3;
+    --lead:#9a82ff; --scan:#f0a35a; --writer:#3cc4bb; --runner:#6da2ff; --report:#ff9a63;
+    --ok:#46c27b; --bad:#ff7b7b; --warn:#e7b15c;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1116; --panel:#171b22; --ink:#e8ecf1; --muted:#97a1af; --line:#2a313b;
+  --accent:#3cc4bb; --accent-ink:#06201e; --term:#090c10; --term-ink:#cfd8e3;
+  --lead:#9a82ff; --scan:#f0a35a; --writer:#3cc4bb; --runner:#6da2ff; --report:#ff9a63;
+  --ok:#46c27b; --bad:#ff7b7b; --warn:#e7b15c;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+h1{font-size:1.5rem;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0;max-width:60ch}
+.badge{display:inline-block;font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);vertical-align:middle;margin-left:6px}
+.btn{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:7px 13px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn:focus-visible,.tab:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-icon{width:38px;padding:7px 0;text-align:center}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.setup{margin:18px 0 14px;display:grid;gap:14px;grid-template-columns:1fr}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg label{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:9px 12px;cursor:pointer;flex:1 1 240px;background:var(--bg)}
+.seg input{margin-top:4px;accent-color:var(--accent)}
+.seg label:has(input:checked){border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.seg b{display:block}
+.seg span{color:var(--muted);font-size:.86rem}
+.prompt{font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--term);color:var(--term-ink);border-radius:8px;padding:10px 12px;overflow-x:auto}
+.prompt .p{color:#7ee0a0}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.controls .spacer{flex:1}
+.controls label{color:var(--muted);font-size:.86rem;display:flex;gap:6px;align-items:center}
+select{font:inherit;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+.stat{padding:10px 12px}
+.stat .n{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat .l{color:var(--muted);font-size:.8rem}
+.stat.bad .n{color:var(--bad)} .stat.ok .n{color:var(--ok)}
+.main{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:900px){.main{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}}
+h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+.agents{display:grid;gap:8px}
+.agent{border:1px solid var(--line);border-left:4px solid var(--c,var(--line));border-radius:10px;padding:9px 12px;background:var(--bg);transition:background .2s,opacity .2s;opacity:.55}
+.agent.active{opacity:1;background:color-mix(in srgb,var(--c) 12%,var(--panel));box-shadow:0 0 0 1px var(--c)}
+.agent.done{opacity:1}
+.agent .top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.agent code{font-weight:700;color:var(--c)}
+.state{font-size:.74rem;font-weight:600;padding:1px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.agent.active .state{color:var(--c);border-color:var(--c)}
+.agent.active .state::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--c);margin-right:5px;animation:pulse 1s infinite}
+.agent.done .state{color:var(--ok);border-color:var(--ok)}
+.agent.skipped{opacity:.35}
+@keyframes pulse{50%{opacity:.2}}
+.agent p{margin:2px 0 0;color:var(--muted);font-size:.85rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font-size:.76rem;border:1px solid var(--line);border-radius:6px;padding:2px 8px;background:var(--panel);color:var(--muted);font-variant-numeric:tabular-nums}
+.chip.run{border-color:var(--writer);color:var(--writer)}
+.chip.fin{border-color:var(--ok);color:var(--ok)}
+.term{background:var(--term);color:var(--term-ink);border-radius:10px;font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;height:430px;overflow-y:auto;padding:10px 12px}
+.term div{white-space:pre-wrap;word-break:break-word}
+.term .a{font-weight:700}
+.term .ok{color:#6fdc98}.term .bad{color:#ff8b8b}.term .warn{color:#f0c36a}.term .dim{color:#7e8896}
+.term .empty{color:#7e8896}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:22px 0 0;overflow-x:auto}
+.tab{font:inherit;border:0;background:none;color:var(--muted);padding:9px 14px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.panel{padding-top:14px}
+.hint{color:var(--muted);font-size:.9rem;margin:0}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th{color:var(--muted);font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.05em}
+.scroll{overflow-x:auto}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;min-width:70px}
+.bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .4s}
+.tag{font-size:.72rem;font-weight:700;padding:1px 7px;border-radius:5px;color:#fff}
+.sev-high{background:var(--bad)} .sev-medium{background:var(--warn)} .sev-serious{background:#8e3fb0}
+.bug{border:1px solid var(--line);border-radius:10px;padding:11px 14px;margin-bottom:10px;background:var(--bg)}
+.bug h3{margin:0 0 4px;font-size:.98rem}
+.bug ol{margin:6px 0 6px 20px;padding:0}
+.bug .ea{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.88rem}
+@media(max-width:600px){.bug .ea{grid-template-columns:1fr}}
+.tree,.csv{font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--term);color:var(--term-ink);border-radius:10px;padding:12px 14px;overflow-x:auto;white-space:pre}
+.tree .new{color:#6fdc98}
+.how{margin-top:26px}
+.how pre{margin:6px 0 0}
+footer{margin-top:28px;color:var(--muted);font-size:.84rem}
+footer a{color:var(--accent)}
+.sr{position:absolute;left:-9999px}
+@media (prefers-reduced-motion: reduce){.agent.active .state::before{animation:none}.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>QA Agent Team <span class="badge">interactive demo</span></h1>
+    <p class="sub">Watch five Claude Code agents plan, write, run and report on a QA suite. Everything here is a <b>simulation</b> against a made-up shop, nothing is actually tested.</p>
+  </div>
+  <div class="controls">
+    <a class="btn" href="https://github.com/kranmal/qa-agent-team" target="_blank" rel="noopener">GitHub repo</a>
+    <button class="btn btn-icon" id="themeBtn" type="button" aria-label="Toggle light or dark theme">◐</button>
+  </div>
+</header>
+
+<section class="card setup" aria-label="Choose a scenario">
+  <div>
+    <h2>1. Pick what you tell qa-lead</h2>
+    <div class="seg" role="radiogroup">
+      <label><input type="radio" name="mode" value="full" checked><div><b>Full run, live site</b><span>Black-box, read-only, no logins. Builds everything from scratch.</span></div></label>
+      <label><input type="radio" name="mode" value="update"><div><b>Update run</b><span>Code changed since the last run. Scan, write only the missing tests.</span></div></label>
+    </div>
+  </div>
+  <div>
+    <h2>Your command</h2>
+    <div class="prompt" id="cmd" aria-live="polite"></div>
+  </div>
+  <div>
+    <h2>2. Run it</h2>
+    <div class="controls">
+      <button class="btn primary" id="startBtn" type="button">▶ Start</button>
+      <button class="btn" id="pauseBtn" type="button" disabled>Pause</button>
+      <button class="btn" id="stepBtn" type="button" disabled>Step</button>
+      <button class="btn" id="resetBtn" type="button">Reset</button>
+      <span class="spacer"></span>
+      <label>Speed
+        <select id="speed"><option value="0.6">Slow</option><option value="1" selected>Normal</option><option value="2.5">Fast</option><option value="8">Very fast</option></select>
+      </label>
+    </div>
+  </div>
+</section>
+
+<div class="stats" id="stats" aria-label="Run statistics"></div>
+
+<div class="main">
+  <section class="card" aria-label="Agents">
+    <h2>The team</h2>
+    <div class="agents" id="agents"></div>
+  </section>
+  <section class="card" aria-label="Activity log">
+    <h2>Activity log</h2>
+    <div class="term" id="log" role="log" aria-live="off"><div class="empty">Press Start to launch the run.</div></div>
+  </section>
+</div>
+
+<div class="tabs" role="tablist" aria-label="Outputs">
+  <button class="tab" role="tab" id="t-cov" aria-selected="true" aria-controls="p-cov">Coverage matrix</button>
+  <button class="tab" role="tab" id="t-bugs" aria-selected="false" aria-controls="p-bugs" tabindex="-1">Bug report <span id="bugCount"></span></button>
+  <button class="tab" role="tab" id="t-files" aria-selected="false" aria-controls="p-files" tabindex="-1">qa/ folder</button>
+  <button class="tab" role="tab" id="t-csv" aria-selected="false" aria-controls="p-csv" tabindex="-1">Zephyr CSV</button>
+</div>
+<section class="panel" id="p-cov" role="tabpanel" aria-labelledby="t-cov"></section>
+<section class="panel" id="p-bugs" role="tabpanel" aria-labelledby="t-bugs" hidden></section>
+<section class="panel" id="p-files" role="tabpanel" aria-labelledby="t-files" hidden></section>
+<section class="panel" id="p-csv" role="tabpanel" aria-labelledby="t-csv" hidden></section>
+
+<section class="card how">
+  <h2>Try it for real</h2>
+  <div class="prompt"><span class="p">$</span> git clone https://github.com/kranmal/qa-agent-team.git &amp;&amp; cd qa-agent-team &amp;&amp; ./install.sh
+<span class="p">$</span> cd /path/to/your/project
+<span class="p">$</span> claude --agent qa-lead</div>
+  <p class="hint" style="margin-top:8px">Start it as the main agent: a sub-agent can't start other sub-agents, so only the lead can fan out the work. Outputs land in <code>qa/</code>.</p>
+</section>
+
+<footer>Simulated data based on the repo README. Real runs differ in timing, counts and findings. <a href="https://kranmal.github.io/privacy.html">Privacy</a></footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(s){return document.querySelector(s)};
+
+/* ---------- theme ---------- */
+var root=document.documentElement;
+try{var saved=localStorage.getItem("qat.theme");if(saved==="light"||saved==="dark")root.setAttribute("data-theme",saved)}catch(e){}
+$("#themeBtn").addEventListener("click",function(){
+  var dark=root.getAttribute("data-theme")==="dark"||(!root.getAttribute("data-theme")&&matchMedia("(prefers-color-scheme: dark)").matches);
+  var next=dark?"light":"dark";
+  root.setAttribute("data-theme",next);
+  try{localStorage.setItem("qat.theme",next)}catch(e){}
+});
+
+/* ---------- scenario data ---------- */
+var AGENTS=[
+  {id:"lead",name:"qa-lead",c:"--lead",desc:"Orchestrates: scaffolds qa/, plans, enforces the coverage gate"},
+  {id:"scanner",name:"qa-change-scanner",c:"--scan",desc:"Update runs: finds what changed since the baseline"},
+  {id:"writer",name:"qa-spec-writer ×N",c:"--writer",desc:"One per feature area, in parallel. Writes the tests"},
+  {id:"runner",name:"qa-test-runner",c:"--runner",desc:"One only. Runs suites, triages every failure"},
+  {id:"report",name:"qa-report-builder",c:"--report",desc:"PDFs and Zephyr CSV, then checks they render"}
+];
+function baseAreas(){return [
+  {id:"auth",name:"Login & session",reqs:5,t:{e2e:9,api:6,unit:8,a11y:3},manual:2},
+  {id:"search",name:"Search & filters",reqs:4,t:{e2e:8,api:5,unit:7,a11y:2},manual:1},
+  {id:"cart",name:"Cart",reqs:5,t:{e2e:10,api:6,unit:9,a11y:3},manual:2},
+  {id:"checkout",name:"Checkout & payment",reqs:6,t:{e2e:12,api:8,unit:11,a11y:4},manual:3},
+  {id:"nav",name:"Navigation & footer",reqs:3,t:{e2e:6,api:2,unit:3,a11y:3},manual:1}
+]}
+var BUGS=[
+  {id:"BUG-001",title:"Checkout accepts a cart quantity of 0 and creates a £0.00 order",sev:"high",
+   summary:"The quantity field validates only the upper bound, so zero passes through to order creation.",
+   steps:["Add any item to the cart.","Set the quantity to 0 and press Update.","Continue to checkout and place the order."],
+   expected:"Validation error: quantity must be at least 1.",actual:"Order confirmed with a total of £0.00."},
+  {id:"BUG-002",title:"Search with a 300-character query returns HTTP 500",sev:"medium",
+   summary:"Over-long queries are not truncated or rejected, and the server errors instead of showing a friendly message.",
+   steps:["Open the search box.","Paste a 300-character string and submit."],
+   expected:"A 4xx response or a 'no results' page.",actual:"HTTP 500 with a blank error page."},
+  {id:"A11Y-001",title:"Promo banner text fails WCAG colour contrast (1.9:1)",sev:"serious",
+   summary:"Added automatically: serious axe-core violation, rule color-contrast.",
+   steps:["Open the home page.","Run axe-core, or inspect the promo banner."],
+   expected:"Contrast ratio of at least 4.5:1.",actual:"1.9:1 for the banner text."}
+];
+var CSV=[
+ "Name,Objective,Precondition,Step,Test Data,Expected Result",
+ "Screen reader announces cart count,Cart badge is announced,Cart has 3 items,Focus the cart icon,VoiceOver on,Announces 'Cart, 3 items'",
+ "Card 3-D Secure challenge completes,3DS flow works end to end,Test card enrolled,Pay with 3DS test card,4000 0000 0000 3220,Order is confirmed after challenge",
+ "Session expiry warns the user,User is warned before logout,Logged in 29 min,Wait 60 seconds,none,Warning dialog appears with extend option",
+ "Print stylesheet hides nav,Order summary prints cleanly,Order confirmed,Press Print,none,Nav and footer are hidden"
+];
+
+/* ---------- state ---------- */
+var S,runId=0,paused=false,stepFlag=false,running=false;
+function freshState(){
+  return {areas:baseAreas(),mode:$("input[name=mode]:checked").value,
+    stats:{reqs:0,written:0,run:0,pass:0,fail:0,manual:0},cov:{},bugs:[],files:[],gate:null,
+    agentState:{},chips:{}};
+}
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
+function speed(){return parseFloat($("#speed").value)}
+async function wait(ms){
+  var my=runId;
+  await sleep(ms/speed());
+  while(paused&&!stepFlag){await sleep(60);if(my!==runId)throw "abort"}
+  stepFlag=false;
+  if(my!==runId)throw "abort";
+}
+
+/* ---------- rendering ---------- */
+function renderCmd(){
+  var m=$("input[name=mode]:checked").value;
+  $("#cmd").innerHTML='<span class="p">$</span> claude --agent qa-lead\n<span class="p">&gt;</span> '+(m==="full"
+    ?"QA https://demo-shop.test. Read-only, no logins."
+    :"Scan for changes and update the tests. We added a wishlist and changed checkout.");
+}
+function renderAgents(){
+  var el=$("#agents");el.textContent="";
+  AGENTS.forEach(function(a){
+    var d=document.createElement("div");d.className="agent";d.id="ag-"+a.id;d.style.setProperty("--c","var("+a.c+")");
+    d.innerHTML='<div class="top"><code>'+a.name+'</code><span class="state">idle</span></div><p>'+a.desc+'</p>'+(a.id==="writer"?'<div class="chips" id="chips"></div>':"");
+    el.appendChild(d);
+  });
+}
+function setAgent(id,state,text){
+  var d=$("#ag-"+id);if(!d)return;
+  d.classList.remove("active","done","skipped");
+  if(state)d.classList.add(state);
+  d.querySelector(".state").textContent=text||(state==="active"?"working":state==="done"?"done":state==="skipped"?"not needed":"idle");
+}
+function renderChips(){
+  var el=$("#chips");if(!el)return;el.textContent="";
+  S.areas.forEach(function(a){
+    var c=document.createElement("span");c.className="chip";c.id="chip-"+a.id;c.textContent=a.name;el.appendChild(c);
+  });
+}
+function chip(id,cls,txt){
+  var c=$("#chip-"+id);if(!c)return;
+  c.className="chip "+cls;c.textContent=txt;
+}
+function renderStats(){
+  var s=S.stats;
+  var items=[["Requirements",s.reqs,""],["Tests written",s.written,""],["Manual (Zephyr)",s.manual,""],["Tests run",s.run,""],["Passed",s.pass,s.pass?"ok":""],["Failed",s.fail,s.fail?"bad":""]];
+  var el=$("#stats");el.textContent="";
+  items.forEach(function(i){
+    var d=document.createElement("div");d.className="card stat "+i[2];
+    d.innerHTML='<div class="n">'+i[1]+'</div><div class="l">'+i[0]+'</div>';el.appendChild(d);
+  });
+}
+function log(agent,text,cls){
+  var term=$("#log");
+  var first=term.querySelector(".empty");if(first)term.textContent="";
+  var d=document.createElement("div");
+  var t=document.createElement("span");t.className="a";
+  var a=AGENTS.filter(function(x){return x.id===agent})[0];
+  t.style.color=a?"var("+a.c+")":"inherit";
+  t.textContent=(a?a.name.replace(" ×N",""):agent)+"  ";
+  var m=document.createElement("span");if(cls)m.className=cls;m.textContent=text;
+  d.appendChild(t);d.appendChild(m);term.appendChild(d);
+  term.scrollTop=term.scrollHeight;
+}
+function renderCov(){
+  var el=$("#p-cov");
+  var rows=S.areas.map(function(a){
+    var c=S.cov[a.id];
+    var tot=c?c.e2e+c.api+c.unit+c.a11y:0;
+    var pct=c?Math.round(c.covered/a.reqs*100):0;
+    return '<tr><td>'+a.name+'</td><td>'+a.reqs+'</td>'+
+      (c?'<td>'+c.e2e+'</td><td>'+c.api+'</td><td>'+c.unit+'</td><td>'+c.a11y+'</td><td>'+c.boundary+'/'+a.reqs+'</td><td>'+c.error+'/'+a.reqs+'</td><td>'+c.manual+'</td>'
+        :'<td colspan="7" style="color:var(--muted)">not started</td>')+
+      '<td><div class="bar" role="img" aria-label="'+pct+' percent covered"><i style="width:'+pct+'%"></i></div></td><td>'+pct+'%</td></tr>';
+  }).join("");
+  el.innerHTML='<p class="hint" style="margin-bottom:10px">Every requirement needs a boundary test and an error test, or a written exemption. The gate fails otherwise.</p>'+
+   '<div class="scroll"><table><thead><tr><th>Area</th><th>Reqs</th><th>E2E</th><th>API</th><th>Unit</th><th>A11y</th><th>@boundary</th><th>@error</th><th>Manual</th><th>Covered</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function renderBugs(){
+  var el=$("#p-bugs");
+  $("#bugCount").textContent=S.bugs.length?"("+S.bugs.length+")":"";
+  if(!S.bugs.length){el.innerHTML='<p class="hint">No bugs recorded yet. The test runner adds confirmed app defects here; serious accessibility violations are added automatically.</p>';return}
+  el.innerHTML=S.bugs.map(function(b){
+    return '<div class="bug"><h3><span class="tag sev-'+b.sev+'">'+b.sev.toUpperCase()+'</span> '+b.id+' · '+b.title+'</h3><div>'+b.summary+'</div>'+
+      '<b style="font-size:.82rem">How to recreate</b><ol>'+b.steps.map(function(s){return "<li>"+s+"</li>"}).join("")+'</ol>'+
+      '<div class="ea"><div><b>Expected</b><br>'+b.expected+'</div><div><b>Actual</b><br>'+b.actual+'</div></div></div>';
+  }).join("");
+}
+var TREE=[
+  ["qa/",0],["  package.json  playwright.config.ts  vitest.config.mts",0],
+  ["  tests/e2e/",1],["  tests/api/",2],["  tests/unit/",3],["  tests/a11y/",4],
+  ["  coverage/coverage-matrix.json",5],["  coverage/baseline.json",9],["  coverage/CHANGES.md",10],["  bugs/bugs.json",6],["  manual/zephyr-import.csv",7],
+  ["  reports/qa-report-latest.pdf",8],["  reports/a11y-report-latest.pdf",8],["  reports/bug-report-latest.pdf",8],["  README.md",0]
+];
+function renderFiles(){
+  var out=[];
+  TREE.forEach(function(t){
+    var made=t[1]===0?S.files.indexOf("scaffold")>-1:S.files.indexOf(t[1])>-1;
+    if(!made&&t[1]!==0)return;
+    if(t[1]===0&&!made)return;
+    if(t[1]===10&&S.mode!=="update")return;
+    out.push((S.files.indexOf("n"+t[1])>-1?'<span class="new">':'<span>')+t[0]+'</span>');
+  });
+  $("#p-files").innerHTML=out.length?'<div class="tree">'+out.join("\n")+'</div>':'<p class="hint">Nothing yet. The lead scaffolds <code>qa/</code> first.</p>';
+}
+function renderCsv(){
+  $("#p-csv").innerHTML=S.files.indexOf(7)>-1
+    ?'<p class="hint" style="margin-bottom:8px">Plain-English manual tests, ready for Zephyr Scale CSV import.</p><div class="csv">'+CSV.join("\n").replace(/&/g,"&amp;").replace(/</g,"&lt;")+'\n… '+(S.stats.manual-4)+' more rows</div>'
+    :'<p class="hint">Written by the report builder from <code>manual/manual-tests.json</code>.</p>';
+}
+function renderAll(){renderStats();renderCov();renderBugs();renderFiles();renderCsv()}
+function addFile(k,isNew){if(S.files.indexOf(k)<0)S.files.push(k)}
+
+/* ---------- tabs ---------- */
+var tabs=[].slice.call(document.querySelectorAll(".tab"));
+function selectTab(t){
+  tabs.forEach(function(x){
+    var on=x===t;x.setAttribute("aria-selected",on);x.tabIndex=on?0:-1;
+    $("#"+x.getAttribute("aria-controls")).hidden=!on;
+  });
+}
+tabs.forEach(function(t,i){
+  t.addEventListener("click",function(){selectTab(t)});
+  t.addEventListener("keydown",function(e){
+    var n=e.key==="ArrowRight"?i+1:e.key==="ArrowLeft"?i-1:null;
+    if(n===null)return;e.preventDefault();var nt=tabs[(n+tabs.length)%tabs.length];nt.focus();selectTab(nt);
+  });
+});
+
+/* ---------- scenario ---------- */
+async function writeArea(a,label){
+  chip(a.id,"run",a.name+" …");
+  var t=a.t,c=S.cov[a.id]={e2e:0,api:0,unit:0,a11y:0,boundary:0,error:0,manual:0,covered:0};
+  var steps=[["e2e","Playwright e2e","tests/e2e/"+a.id+".spec.ts"],["api","API","tests/api/"+a.id+".api.spec.ts"],["unit","Vitest unit","tests/unit/"+a.id+".test.ts"],["a11y","axe-core accessibility","tests/a11y/"+a.id+".a11y.spec.ts"]];
+  for(var i=0;i<steps.length;i++){
+    await wait(500+Math.random()*500);
+    var k=steps[i][0];c[k]=t[k];S.stats.written+=t[k];
+    log("writer",a.name+": "+t[k]+" "+steps[i][1]+" tests → "+steps[i][2]);
+    if(k==="e2e"){c.boundary=a.reqs-(a.id==="checkout"?1:0);c.error=a.reqs-(a.id==="checkout"?1:0);c.covered=a.reqs-(a.id==="checkout"?1:0)}
+    renderAll();
+  }
+  await wait(400);
+  c.manual=a.manual;S.stats.manual+=a.manual;
+  log("writer",a.name+": "+a.manual+" manual Zephyr test(s) proposed (not automatable)");
+  chip(a.id,"fin","✓ "+a.name);renderAll();
+}
+
+async function fullRun(){
+  var areas=S.areas;
+  setAgent("scanner","skipped");
+  setAgent("lead","active","orienting");
+  log("lead","Target: https://demo-shop.test  (black-box, read-only, no logins)");await wait(700);
+  log("lead","Reading site: 5 feature areas found from navigation and sitemap");await wait(700);
+  log("lead","Scaffolding qa/ from the qa-playwright skill (playwright, vitest, scripts, templates)");
+  addFile("scaffold");addFile("n0");renderAll();await wait(800);
+  log("lead","Building coverage matrix");
+  var total=areas.reduce(function(n,a){return n+a.reqs},0);
+  S.stats.reqs=total;addFile(5);S.areas.forEach(function(a){S.cov[a.id]=null});renderAll();await wait(600);
+  log("lead",total+" requirements across "+areas.length+" areas. Splitting work, one spec-writer per area","ok");
+  setAgent("lead","active","fan-out");
+  setAgent("writer","active",areas.length+" running");renderChips();
+  log("lead","Starting "+areas.length+" qa-spec-writer agents in parallel");await wait(500);
+  addFile(1);addFile(2);addFile(3);addFile(4);
+  await Promise.all(areas.map(function(a,i){return sleep(i*180/speed()).then(function(){return writeArea(a)})}));
+  setAgent("writer","done","all finished");
+  log("writer","All areas written. Each owns only its own files","ok");await wait(500);
+
+  setAgent("lead","active","coverage gate");
+  log("lead","$ npm run coverage:check");await wait(800);
+  S.gate="fail";
+  log("lead","FAIL  Checkout & payment: requirement CHK-06 (declined card) has no @error test","bad");await wait(500);
+  log("lead","Sending gap back to the checkout spec-writer");
+  setAgent("writer","active","fixing gap");chip("checkout","run","Checkout & payment …");await wait(900);
+  var c=S.cov.checkout;c.boundary=6;c.error=6;c.covered=6;c.e2e+=1;S.stats.written+=1;
+  log("writer","Checkout: added @error test 'declined card shows retry message'","ok");
+  chip("checkout","fin","✓ Checkout & payment");setAgent("writer","done","all finished");renderAll();await wait(500);
+  log("lead","$ npm run coverage:check && npm run typecheck");await wait(800);
+  log("lead","PASS  23/23 requirements, 23/23 boundary, 23/23 error, 0 unmapped pages","ok");
+  S.gate="pass";setAgent("lead","active","waiting on runner");await wait(500);
+
+  setAgent("runner","active","running suites");
+  log("runner","Running one suite at a time (parallel runs on a live site cause flakiness)");await wait(700);
+  var suites=[["e2e",45,2],["api",27,1],["unit",38,0],["a11y",15,1]],run=0,fail=0;
+  for(var i=0;i<suites.length;i++){
+    log("runner","$ npm run test:"+suites[i][0]);await wait(1000);
+    run+=suites[i][1];fail+=suites[i][2];
+    S.stats.run=run;S.stats.fail=fail;S.stats.pass=run-fail;
+    log("runner",suites[i][0]+": "+(suites[i][1]-suites[i][2])+" passed, "+suites[i][2]+" failed",suites[i][2]?"warn":"ok");renderAll();
+  }
+  log("runner","Triaging 4 failures: app defect, test bug or flake?");await wait(900);
+  log("runner","e2e 'cart badge count' → TEST BUG (stale locator). Fixed, re-run","warn");await wait(800);
+  S.stats.fail-=1;S.stats.pass+=1;renderAll();
+  log("runner","api 'search rate limit' → FLAKE (passes 3/3 on retry)","warn");await wait(800);
+  S.stats.fail-=1;S.stats.pass+=1;renderAll();
+  log("runner","e2e 'checkout quantity 0' → APP DEFECT. Assertion kept, not weakened","bad");
+  S.bugs.push(BUGS[0]);addFile(6);renderAll();await wait(900);
+  log("runner","a11y 'promo banner contrast' → APP DEFECT (serious) → bug report","bad");await wait(500);
+  log("runner","Recorded BUG-001 and BUG-002 in qa/bugs/bugs.json");
+  S.bugs.push(BUGS[1]);S.stats.run=run;
+  S.stats.fail=2;S.stats.pass=run-2;renderAll();
+  setAgent("runner","done","2 defects");setAgent("lead","active","waiting on reports");await wait(600);
+
+  setAgent("report","active","building");
+  log("report","$ npm run zephyr:export");addFile(7);renderAll();await wait(800);
+  log("report","manual/zephyr-import.csv: "+S.stats.manual+" manual tests");await wait(500);
+  log("report","$ npm run report && npm run report:a11y && npm run report:bugs");await wait(1000);
+  S.bugs.push(BUGS[2]);addFile(8);renderAll();
+  log("report","Added serious a11y violation A11Y-001 to the bug report automatically");await wait(500);
+  log("report","Verified: coverage %, boundary/error sections, test data and screenshots all present","ok");
+  setAgent("report","done","3 PDFs + CSV");await wait(500);
+  setAgent("lead","done","handover");
+  log("lead","Handover: "+S.stats.run+" tests run, "+S.stats.pass+" pass, "+S.stats.fail+" real failures, 3 bugs. Start with reports/bug-report-latest.pdf","ok");
+  selectTab($("#t-bugs"));
+}
+
+async function updateRun(){
+  var a=S.areas;
+  /* baseline already exists */
+  S.areas=a.concat([{id:"wish",name:"Wishlist (new)",reqs:4,t:{e2e:7,api:4,unit:5,a11y:2},manual:1}]);
+  a=S.areas;
+  var total=a.reduce(function(n,x){return n+x.reqs},0);
+  S.stats.reqs=total-4;
+  ["auth","search","cart","checkout","nav"].forEach(function(id){
+    var ar=a.filter(function(x){return x.id===id})[0],t=ar.t;
+    S.cov[id]={e2e:t.e2e,api:t.api,unit:t.unit,a11y:t.a11y,boundary:ar.reqs,error:ar.reqs,manual:ar.manual,covered:ar.reqs};
+    S.stats.written+=t.e2e+t.api+t.unit+t.a11y;S.stats.manual+=ar.manual;
+  });
+  S.stats.run=S.stats.written-0;S.stats.pass=S.stats.run;
+  ["scaffold",0,1,2,3,4,5,6,7,8,"n0"].forEach(function(k){addFile(k)});
+  setAgent("lead","active","orienting");
+  log("lead","Existing qa/ found with baseline. Entering update mode");renderChips();renderAll();await wait(800);
+  log("lead","Prior state: 23/23 requirements covered, "+S.stats.run+" tests passing","ok");await wait(500);
+  setAgent("scanner","active","scanning");
+  log("scanner","$ npm run scan:changes");await wait(900);
+  log("scanner","Hashing source files under sourceRoots and comparing with coverage/baseline.json");await wait(900);
+  log("scanner","NEW       src/wishlist/*  (6 files)  → no matching requirement","warn");await wait(500);
+  log("scanner","MODIFIED  src/checkout/payment.ts  → affects CHK-02, CHK-05, CHK-06","warn");await wait(500);
+  log("scanner","UI CHANGED src/components/Header.tsx → accessibility re-scan needed","warn");await wait(500);
+  log("scanner","UNCHANGED 41 files. Wrote coverage/CHANGES.md and artifacts/change-report.json");addFile(10);S.files.push("n10");renderFiles();await wait(600);
+  log("scanner","Work plan: new Wishlist area (4 reqs), refresh 3 Checkout tests, a11y re-scan Header","ok");
+  setAgent("scanner","done","plan ready");await wait(500);
+
+  setAgent("lead","active","fan-out");
+  log("lead","Adding Wishlist to the matrix; marking Checkout as stale");
+  S.stats.reqs=total;S.cov.wish=null;S.cov.checkout.covered=3;renderAll();await wait(700);
+  setAgent("writer","active","2 running");
+  var chips=$("#chips");chips.textContent="";
+  [["wish","Wishlist (new)"],["checkout","Checkout & payment"]].forEach(function(x){var c=document.createElement("span");c.className="chip";c.id="chip-"+x[0];c.textContent=x[1];chips.appendChild(c)});
+  log("lead","Starting 2 qa-spec-writer agents; the other 4 areas are untouched");
+  var w=a.filter(function(x){return x.id==="wish"})[0];
+  await Promise.all([
+    writeArea(w),
+    (async function(){
+      chip("checkout","run","Checkout & payment …");
+      await wait(1200);log("writer","Checkout: refreshed 3 tests for the new payment flow, added @error for expired card");
+      S.cov.checkout.covered=6;S.stats.written+=4;S.cov.checkout.e2e+=1;renderAll();
+      await wait(700);log("writer","Header: re-ran axe-core scan, updated 1 a11y assertion");
+      chip("checkout","fin","✓ Checkout & payment");renderAll();
+    })()
+  ]);
+  setAgent("writer","done","finished");
+  setAgent("lead","active","coverage gate");log("lead","$ npm run coverage:check");await wait(800);
+  log("lead","PASS  27/27 requirements, boundary and error complete","ok");S.gate="pass";await wait(500);
+
+  setAgent("runner","active","running suites");
+  log("runner","$ npm run test:all");await wait(1300);
+  var extra=a.filter(function(x){return x.id==="wish"})[0].t;
+  var added=extra.e2e+extra.api+extra.unit+extra.a11y+4;
+  S.stats.run=S.stats.written;S.stats.pass=S.stats.run-1;S.stats.fail=1;renderAll();
+  log("runner","1 failure: wishlist 'add 101st item' → APP DEFECT (no maximum enforced)","bad");
+  S.bugs.push({id:"BUG-004",title:"Wishlist accepts more than the documented 100 items",sev:"medium",
+    summary:"The spec caps a wishlist at 100 items, but the 101st add succeeds and the count shows 101.",
+    steps:["Open a wishlist containing 100 items.","Add one more product."],expected:"Error: wishlist is full.",actual:"Item added; count shows 101."});
+  renderAll();await wait(600);
+  setAgent("runner","done","1 defect");
+
+  setAgent("report","active","rebuilding");
+  log("report","Regenerating Zephyr CSV and the three PDFs");S.files.push("n7","n8");renderAll();await wait(1100);
+  log("report","Verified all reports. New Wishlist section and BUG-004 included","ok");
+  setAgent("report","done","updated");await wait(500);
+  log("lead","$ npm run scan:changes -- --accept");await wait(700);
+  log("lead","New baseline recorded (coverage/baseline.json). Update run complete: "+added+" tests added","ok");
+  S.files.push("n9");addFile(9);renderAll();
+  setAgent("lead","done","baseline saved");
+  selectTab($("#t-cov"));
+}
+
+/* ---------- controls ---------- */
+function setButtons(){
+  $("#startBtn").disabled=running;
+  $("#pauseBtn").disabled=!running;
+  $("#stepBtn").disabled=!(running&&paused);
+  $("#pauseBtn").textContent=paused?"Resume":"Pause";
+  document.querySelectorAll("input[name=mode]").forEach(function(i){i.disabled=running});
+}
+function reset(){
+  runId++;running=false;paused=false;stepFlag=false;
+  S=freshState();
+  $("#log").innerHTML='<div class="empty">Press Start to launch the run.</div>';
+  renderAgents();renderChips();renderAll();setButtons();
+}
+$("#startBtn").addEventListener("click",async function(){
+  if(running)return;
+  if(S.stats.written||S.log)reset();
+  S=freshState();renderAgents();renderChips();renderAll();
+  $("#log").textContent="";
+  running=true;paused=false;setButtons();
+  var my=runId;
+  try{
+    await (S.mode==="full"?fullRun():updateRun());
+  }catch(e){ if(e!=="abort")console.error(e) }
+  if(my===runId){running=false;paused=false;setButtons()}
+});
+$("#pauseBtn").addEventListener("click",function(){paused=!paused;setButtons()});
+$("#stepBtn").addEventListener("click",function(){stepFlag=true});
+$("#resetBtn").addEventListener("click",reset);
+document.querySelectorAll("input[name=mode]").forEach(function(i){i.addEventListener("change",function(){renderCmd();reset()})});
+
+renderCmd();reset();
+})();
+</script>
+</body>
+</html>
