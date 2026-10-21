@@ -79,6 +79,12 @@ It finds what is new, writes only the missing tests, and updates the reports. Th
 
 ---
 
+## Use it from Claude desktop
+
+The `interface/` folder has an MCP server and a live dashboard, so you can start and follow runs from Claude desktop chat. See [interface/README.md](interface/README.md).
+
+---
+
 ## Install
 
 ### Requirements
