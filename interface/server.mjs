@@ -326,7 +326,8 @@ function handleHttp(req, res) {
   if (req.method === 'GET' && (m = p.match(/^\/api\/runs\/([\w-]+)\/file$/))) {
     const full = resolveReportFile(m[1], url.searchParams.get('path') || '');
     if (!full) return json(res, 404, { error: 'not found' });
-    res.writeHead(200, { 'content-type': MIME[path.extname(full)] || 'application/octet-stream', 'content-disposition': 'inline' });
+    const disposition = url.searchParams.get('download') === '1' ? `attachment; filename="${path.basename(full).replace(/[^\w.-]/g, '_')}"` : 'inline';
+    res.writeHead(200, { 'content-type': MIME[path.extname(full)] || 'application/octet-stream', 'content-disposition': disposition });
     return fs.createReadStream(full).pipe(res);
   }
   if (req.method === 'POST') {
