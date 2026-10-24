@@ -220,9 +220,9 @@ code{background:var(--accent-soft);border-radius:6px;padding:1px 6px;font:12px u
           <summary>Run settings <span id="advsum" style="font-weight:400"></span></summary>
           <div class="grid">
             <div><label for="model">Model</label>
-              <select id="model"><option value="">Default</option><option>opus</option><option>sonnet</option><option>haiku</option><option>fable</option><option value="__custom">Custom id…</option></select></div>
+              <select id="model"><option>sonnet</option><option>opus</option><option>haiku</option><option>fable</option><option value="default">Claude default</option><option value="__custom">Custom id…</option></select></div>
             <div><label for="effort">Effort</label>
-              <select id="effort"><option value="">Default</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></div>
+              <select id="effort"><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option><option value="default">Claude default</option></select></div>
             <div class="full" id="custombox" hidden><label for="custom">Custom model id</label><input id="custom" placeholder="claude-sonnet-5-5" autocomplete="off"></div>
             <div class="full"><label for="budget">Max budget (USD)</label><input id="budget" type="number" min="0.01" max="1000" step="0.01" placeholder="No limit"></div>
             <p class="hint full">Applies to every agent in the run. Lower effort and smaller models are cheaper and quicker.</p>
