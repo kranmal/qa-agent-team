@@ -30,8 +30,14 @@ const PERMISSION_MODE = process.env.QA_UI_PERMISSION_MODE || 'acceptEdits';
 // against an allowlist (or a strict pattern) rather than passed through.
 const MODEL_ALIASES = ['opus', 'sonnet', 'haiku', 'fable'];
 const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+// Runs default to Sonnet at low effort; pass 'default' to use Claude's own default instead.
+const DEFAULT_MODEL = process.env.QA_UI_MODEL || 'sonnet';
+const DEFAULT_EFFORT = process.env.QA_UI_EFFORT || 'low';
 function cleanSettings({ model, effort, maxBudgetUsd } = {}) {
   const out = {};
+  model = model || DEFAULT_MODEL; effort = effort || DEFAULT_EFFORT;
+  if (model === 'default') model = '';
+  if (effort === 'default') effort = '';
   if (model) {
     const m = String(model).trim();
     if (!MODEL_ALIASES.includes(m) && !/^claude-[a-z0-9.-]{1,60}$/.test(m)) throw new Error(`Unknown model "${m}". Use ${MODEL_ALIASES.join(', ')} or a full id like claude-sonnet-5-5.`);
@@ -414,8 +420,8 @@ const TOOLS = [
       properties: {
         target: { type: 'string', description: 'Absolute path to a project folder, or an http(s) URL for a live site.' },
         mode: { type: 'string', enum: ['full', 'update'], description: 'full = plan, write, run and report from scratch. update = scan for changes and write only missing tests. Default full.' },
-        model: { type: 'string', description: 'Optional model for the whole team (sub-agents inherit it): opus, sonnet, haiku, fable, or a full id such as claude-sonnet-5-5. Omit for the CLI default.' },
-        effort: { type: 'string', enum: EFFORTS, description: 'Optional reasoning effort. Higher is slower and costs more.' },
+        model: { type: 'string', description: 'Optional model for the whole team (sub-agents inherit it): opus, sonnet, haiku, fable, or a full id such as claude-sonnet-5-5. Defaults to sonnet; pass "default" for Claude\'s own default.' },
+        effort: { type: 'string', enum: [...EFFORTS, 'default'], description: 'Optional reasoning effort. Defaults to low; higher is slower and costs more. "default" uses Claude\'s own default.' },
         maxBudgetUsd: { type: 'number', description: 'Optional spending cap in US dollars. The run stops when it is reached.' },
         notes: { type: 'string', description: 'Extra instructions, e.g. "It runs at http://localhost:3000, start it with npm run dev" or test login details (never a real password).' },
       },
