@@ -284,7 +284,28 @@ function listReports(cwd) {
       } catch {}
     }
   }
-  return out;
+  return latestOnly(out);
+}
+
+// Reports are written as name-YYYY-MM-DD-HH-MM.ext plus a name-latest.ext copy.
+// Show one file per report: the -latest copy if present, else the newest dated one.
+function latestOnly(files) {
+  const STAMP = /-(\d{4}-\d{2}-\d{2}(?:-\d{2}-\d{2})?)(\.\w+)$/;
+  const families = new Map();
+  const keep = [];
+  for (const f of files) {
+    const m = STAMP.exec(f.path);
+    if (!m) { keep.push(f); continue; }
+    const key = f.path.slice(0, m.index) + m[2];
+    const cur = families.get(key);
+    if (!cur || m[1] > cur.stamp) families.set(key, { stamp: m[1], f });
+  }
+  const latest = new Set(keep.map((f) => f.path));
+  for (const [key, { f }] of families) {
+    const alias = key.replace(/(\.\w+)$/, '-latest$1');
+    if (!latest.has(alias)) keep.push(f);
+  }
+  return keep.sort((x, y) => x.path.localeCompare(y.path));
 }
 
 function coverageSummary(cwd) {
