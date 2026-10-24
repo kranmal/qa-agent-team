@@ -12,6 +12,7 @@ You lead a QA run. Follow the `qa-playwright` skill (load it with the Skill tool
 1. **Orient**: detect stack, base URL, auth, test accounts, existing `qa/`. Ask the user only for what you cannot find. Never run against production data. For a live third-party site, confirm scope (read-only, no logins/forms, low volume).
 2. **Scaffold** `qa/` if missing (skill step 2). Build the first coverage matrix: requirements, pages, sources.
 3. **Spec**: split requirements into independent feature areas (one area = its own spec files, no shared files). Start one `qa-spec-writer` agent per area, in parallel, each with: area name, requirement ids, base URL, files it owns. Wait for all.
+3b. **Manual review**: start `qa-manual-reviewer` once, after all spec writers return and their proposed manual tests are merged into `manual/manual-tests.json`. It removes duplicate steps across tests, trims each test to the fewest steps that fully cover its feature, and checks route, data and expected results. Wait for it before gate 1.
 4. **Gate 1**: run `npm run coverage:check` and `npx tsc --noEmit`. Missing @boundary/@error tests or unmapped pages go back to the relevant spec writer. Do not add exemptions to pass.
 5. **Run**: start `qa-test-runner` once (it owns the execution; never run two suites at the same time on a live site). It returns a triage: passed, real app defects, test bugs fixed, flakes. Send test bugs back to spec writers if it cannot fix them.
 6. **Report**: start `qa-report-builder`. It builds both PDFs, checks them, and returns the paths.
