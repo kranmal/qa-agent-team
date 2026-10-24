@@ -100,7 +100,7 @@ cd Vibe_Portfolio_Projects/qa-agent-team
 ```
 
 This copies:
-- the 5 agents to `~/.claude/agents/` (`qa-lead`, `qa-spec-writer`, `qa-test-runner`, `qa-report-builder`, `qa-change-scanner`)
+- the 6 agents to `~/.claude/agents/` (`qa-lead`, `qa-spec-writer`, `qa-test-runner`, `qa-report-builder`, `qa-change-scanner`, `qa-manual-reviewer`)
 - the `qa-playwright` skill to `~/.claude/skills/qa-playwright/`
 
 Options:
@@ -168,6 +168,7 @@ Files live in `~/.claude/agents/`.
 | `qa-change-scanner` | Scans the codebase (or live site) for changes since the last full-coverage baseline and produces a grouped work plan of functional and accessibility tests to add. Writes no tests. |
 | `qa-spec-writer` | One per feature area, run in parallel. Writes happy, boundary and error tests (black-box and white-box), accessibility tests, and proposes manual Zephyr tests. Edits only the files it owns. |
 | `qa-test-runner` | One only. Runs all suites one at a time, triages each failure as app defect, test bug or flake, fixes test bugs, and records confirmed defects in `qa/bugs/bugs.json`. |
+| `qa-manual-reviewer` | One only, after the spec writers. Reviews every manual test together: removes duplicate steps across tests, trims each to the fewest steps with full coverage, and checks route from login, labelled test data and concise expected results. |
 | `qa-report-builder` | Exports the Zephyr CSV, builds the three PDFs, and checks each one renders correctly. |
 
 ```

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs the QA agent team (5 agents + the qa-playwright skill) for Claude Code.
+# Installs the QA agent team (6 agents + the qa-playwright skill) for Claude Code.
 #   ./install.sh            install for your user  (~/.claude)
 #   ./install.sh --project  install into the current project (./.claude)
 #   ./install.sh --force    overwrite existing copies (they are backed up first)

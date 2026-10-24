@@ -55,7 +55,7 @@ Per `references/accessibility.md`: for every page and state in the matrix `pages
 
 ### 6. Manual tests
 
-For each requirement that could not be automated, add a concise plain-English test to `qa/manual/manual-tests.json` (format and style in `references/zephyr-manual-tests.md`) with `covers` ids, then `npm run zephyr:export`. Review warnings from the exporter and fix them. Manual tests are mandatory wherever automation cannot reach: the deliverable is always `manual/zephyr-import.csv` (Zephyr Scale format), and the functional PDF lists them in a "Manual tests (Zephyr Scale)" section.
+For each requirement that could not be automated, add a test to `qa/manual/manual-tests.json` (principles, format and style in `references/zephyr-manual-tests.md`): the fewest steps that fully cover the feature, a first step that navigates from login to the feature, labelled boundary/error/blackbox/whitebox test data, concise expected results, and `covers` ids. Then review the whole file for duplicate steps across tests (the `qa-manual-reviewer` agent does this) and run `npm run zephyr:export`. Review warnings from the exporter and fix them. Manual tests are mandatory wherever automation cannot reach: the deliverable is always `manual/zephyr-import.csv` (Zephyr Scale format), and the functional PDF lists them in a "Manual tests (Zephyr Scale)" section.
 
 ### 7. Coverage gate
 
