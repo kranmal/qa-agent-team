@@ -96,10 +96,10 @@ main{display:grid;grid-template-columns:340px 1fr;gap:20px;padding:24px;max-widt
 
 /* form */
 label{display:block;font-size:12.5px;font-weight:500;color:var(--muted);margin:14px 0 6px}
-input,textarea{width:100%;background:var(--panel-solid);color:var(--ink);border:1px solid var(--line);border-radius:12px;
+input,textarea,select{width:100%;background:var(--panel-solid);color:var(--ink);border:1px solid var(--line);border-radius:12px;
   padding:10px 12px;font:inherit;transition:.15s}
 textarea{min-height:68px;resize:vertical}
-input:focus,textarea:focus,.seg input:focus-visible+span,button:focus-visible,a:focus-visible{
+input:focus,textarea:focus,select:focus,.seg input:focus-visible+span,button:focus-visible,a:focus-visible{
   outline:none;border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}
 ::placeholder{color:color-mix(in srgb,var(--muted) 65%,transparent)}
 .seg{display:grid;grid-template-columns:1fr 1fr;background:var(--accent-soft);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
@@ -115,6 +115,16 @@ button.primary:active{transform:scale(.985)}
 button.primary:disabled{opacity:.5;cursor:default;transform:none}
 button.danger{background:none;border:1px solid var(--bad);color:var(--bad);border-radius:99px;padding:5px 14px;font:inherit;font-size:13px;font-weight:550;cursor:pointer;transition:.18s}
 button.danger:hover{background:color-mix(in srgb,var(--bad) 12%,transparent)}
+details.adv{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:0 12px;background:var(--accent-soft)}
+details.adv summary{cursor:pointer;padding:10px 0;font-size:13px;font-weight:550;color:var(--muted);list-style:none;display:flex;justify-content:space-between}
+details.adv summary::-webkit-details-marker{display:none}
+details.adv summary::after{content:"+";font-weight:700}
+details.adv[open] summary::after{content:"\2212"}
+details.adv[open] summary{color:var(--ink)}
+details.adv .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px;padding-bottom:12px}
+details.adv .grid .full{grid-column:1/-1}
+details.adv label{margin-top:4px}
+details.adv .hint{font-size:12px;color:var(--muted);margin:4px 0 0}
 #formerr{color:var(--bad);font-size:13px;margin-top:8px}
 
 /* run list */
@@ -205,6 +215,18 @@ code{background:var(--accent-soft);border-radius:6px;padding:1px 6px;font:12px u
         </div>
         <label for="notes">Notes (optional)</label>
         <textarea id="notes" placeholder="It runs at http://localhost:3000, start it with npm run dev"></textarea>
+        <details class="adv" id="adv">
+          <summary>Run settings <span id="advsum" style="font-weight:400"></span></summary>
+          <div class="grid">
+            <div><label for="model">Model</label>
+              <select id="model"><option value="">Default</option><option>opus</option><option>sonnet</option><option>haiku</option><option>fable</option><option value="__custom">Custom id…</option></select></div>
+            <div><label for="effort">Effort</label>
+              <select id="effort"><option value="">Default</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></div>
+            <div class="full" id="custombox" hidden><label for="custom">Custom model id</label><input id="custom" placeholder="claude-sonnet-5-5" autocomplete="off"></div>
+            <div class="full"><label for="budget">Max budget (USD)</label><input id="budget" type="number" min="0.01" max="1000" step="0.01" placeholder="No limit"></div>
+            <p class="hint full">Applies to every agent in the run. Lower effort and smaller models are cheaper and quicker.</p>
+          </div>
+        </details>
         <button class="primary" id="go">Start run</button>
         <div id="formerr"></div>
       </form>
@@ -240,12 +262,24 @@ $('theme').onclick = () => {
 const api = (p, opts = {}) => fetch(p, { ...opts, headers: { 'x-qa-ui': '1', 'content-type': 'application/json' } })
   .then(async (r) => { const b = await r.json(); if (!r.ok) throw new Error(b.error || r.status); return b; });
 
+const sumSettings = () => {
+  $('custombox').hidden = $('model').value !== '__custom';
+  const m = $('model').value === '__custom' ? $('custom').value.trim() : $('model').value;
+  $('advsum').textContent = [m, $('effort').value, $('budget').value && '$' + $('budget').value].filter(Boolean).join(' · ');
+};
+['model', 'effort', 'budget', 'custom'].forEach((i) => $(i).addEventListener('input', sumSettings));
+
 $('form').onsubmit = async (e) => {
   e.preventDefault();
   $('go').disabled = true; $('formerr').textContent = '';
   try {
     const mode = document.querySelector('input[name="mode"]:checked').value;
-    const r = await api('/api/runs', { method: 'POST', body: JSON.stringify({ target: $('target').value.trim(), mode, notes: $('notes').value.trim() }) });
+    const body = { target: $('target').value.trim(), mode, notes: $('notes').value.trim() };
+    const model = $('model').value === '__custom' ? $('custom').value.trim() : $('model').value;
+    if (model) body.model = model;
+    if ($('effort').value) body.effort = $('effort').value;
+    if ($('budget').value) body.maxBudgetUsd = Number($('budget').value);
+    const r = await api('/api/runs', { method: 'POST', body: JSON.stringify(body) });
     selected = r.id; await refresh();
   } catch (err) { $('formerr').textContent = err.message; }
   $('go').disabled = false;
@@ -283,7 +317,9 @@ async function showDetail(id) {
   const html = `
     <div class="card ${shownId === id ? '' : 'fade'}">
       <div class="row"><div class="grow"><h3 class="title">${esc(d.target)}</h3>
-        <div class="sub">${esc(d.mode)} run · ${esc(d.cwd)}</div></div>
+        <div class="sub">${esc(d.mode)} run · ${esc(d.cwd)}</div>
+        ${(() => { const s = d.settings || {}; const c = [s.model && 'Model ' + s.model, s.effort && 'Effort ' + s.effort, s.maxBudgetUsd && 'Budget $' + s.maxBudgetUsd].filter(Boolean);
+          return c.length ? `<div class="bugbar" style="margin-top:8px">${c.map((x) => `<span class="chip">${esc(x)}</span>`).join('')}</div>` : ''; })()}</div>
         <span class="pill ${esc(d.status)}">${esc(d.status)}</span>
         ${d.status === 'running' ? '<button class="danger" id="cancel">Cancel</button>' : ''}</div>
       <div class="stats">

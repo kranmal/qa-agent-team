@@ -26,6 +26,29 @@ const WEB_ONLY = process.argv.includes('--web');
 const ALLOWED_TOOLS = process.env.QA_UI_ALLOWED_TOOLS || 'Bash,Read,Write,Edit,Glob,Grep,Agent,Skill';
 const PERMISSION_MODE = process.env.QA_UI_PERMISSION_MODE || 'acceptEdits';
 
+// Per-run settings. Values go onto the claude command line, so they are checked
+// against an allowlist (or a strict pattern) rather than passed through.
+const MODEL_ALIASES = ['opus', 'sonnet', 'haiku', 'fable'];
+const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+function cleanSettings({ model, effort, maxBudgetUsd } = {}) {
+  const out = {};
+  if (model) {
+    const m = String(model).trim();
+    if (!MODEL_ALIASES.includes(m) && !/^claude-[a-z0-9.-]{1,60}$/.test(m)) throw new Error(`Unknown model "${m}". Use ${MODEL_ALIASES.join(', ')} or a full id like claude-sonnet-5-5.`);
+    out.model = m;
+  }
+  if (effort) {
+    if (!EFFORTS.includes(effort)) throw new Error(`Unknown effort "${effort}". Use ${EFFORTS.join(', ')}.`);
+    out.effort = effort;
+  }
+  if (maxBudgetUsd !== undefined && maxBudgetUsd !== null && maxBudgetUsd !== '') {
+    const n = Number(maxBudgetUsd);
+    if (!Number.isFinite(n) || n <= 0 || n > 1000) throw new Error('Budget must be a number of dollars between 0 and 1000.');
+    out.maxBudgetUsd = n;
+  }
+  return out;
+}
+
 fs.mkdirSync(RUNS_DIR, { recursive: true });
 fs.mkdirSync(WORK_DIR, { recursive: true });
 
@@ -97,16 +120,17 @@ function buildPrompt({ target, mode, notes, kind }) {
   return [base, notes].filter(Boolean).join(' ');
 }
 
-function startRun({ target, mode = 'full', notes = '' }) {
+function startRun({ target, mode = 'full', notes = '', model, effort, maxBudgetUsd }) {
   if (!target) throw new Error('target is required (project path or URL)');
   if (!agentsInstalled()) throw new Error('qa-lead agent not found in ~/.claude/agents. Run ./install.sh from the repo root first.');
   if (claudeLoggedIn() === false) throw new Error(`Claude Code CLI is not logged in, so runs would fail immediately. Run "${CLAUDE_BIN} auth login" in a terminal, then try again.`);
+  const settings = cleanSettings({ model, effort, maxBudgetUsd });
   const { cwd, kind } = resolveTarget(target);
   const id = newId();
   const dir = runDir(id);
   fs.mkdirSync(dir, { recursive: true });
   const prompt = buildPrompt({ target, mode, notes, kind });
-  const meta = { id, target, kind, mode, notes, cwd, prompt, startedAt: new Date().toISOString(), cancelled: false };
+  const meta = { id, target, kind, mode, notes, settings, cwd, prompt, startedAt: new Date().toISOString(), cancelled: false };
   fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify(meta, null, 2));
 
   const out = fs.openSync(path.join(dir, 'stream.jsonl'), 'a');
@@ -117,6 +141,9 @@ function startRun({ target, mode = 'full', notes = '' }) {
     '--permission-mode', PERMISSION_MODE,
     '--allowedTools', ALLOWED_TOOLS,
   ];
+  if (settings.model) args.push('--model', settings.model);
+  if (settings.effort) args.push('--effort', settings.effort);
+  if (settings.maxBudgetUsd) args.push('--max-budget-usd', String(settings.maxBudgetUsd));
   // The wrapper records the exit code so status survives a server restart.
   const child = spawn('/bin/sh', ['-c', '"$@"; echo $? > "$QA_UI_EXIT_FILE"', 'sh', CLAUDE_BIN, ...args], {
     cwd,
@@ -211,7 +238,7 @@ function summarise(id) {
   let stderr = '';
   try { stderr = fs.readFileSync(path.join(dir, 'stderr.log'), 'utf8').slice(-1500); } catch {}
   return {
-    id, status, target: meta.target, kind: meta.kind, mode: meta.mode, notes: meta.notes, cwd: meta.cwd,
+    id, status, target: meta.target, kind: meta.kind, mode: meta.mode, notes: meta.notes, settings: meta.settings || {}, cwd: meta.cwd,
     startedAt: meta.startedAt,
     agents: st.agents.map(({ agent, description, status: s }) => ({ agent, description, status: s })),
     toolCalls: st.tools,
@@ -366,6 +393,9 @@ const TOOLS = [
       properties: {
         target: { type: 'string', description: 'Absolute path to a project folder, or an http(s) URL for a live site.' },
         mode: { type: 'string', enum: ['full', 'update'], description: 'full = plan, write, run and report from scratch. update = scan for changes and write only missing tests. Default full.' },
+        model: { type: 'string', description: 'Optional model for the whole team (sub-agents inherit it): opus, sonnet, haiku, fable, or a full id such as claude-sonnet-5-5. Omit for the CLI default.' },
+        effort: { type: 'string', enum: EFFORTS, description: 'Optional reasoning effort. Higher is slower and costs more.' },
+        maxBudgetUsd: { type: 'number', description: 'Optional spending cap in US dollars. The run stops when it is reached.' },
         notes: { type: 'string', description: 'Extra instructions, e.g. "It runs at http://localhost:3000, start it with npm run dev" or test login details (never a real password).' },
       },
       required: ['target'],
