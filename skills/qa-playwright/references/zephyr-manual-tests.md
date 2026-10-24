@@ -30,7 +30,8 @@ could break it, then write the fewest steps that exercise all of that.
    step, either merge the tests, or keep it in one and rely on it in the other (drop it, and say so in
    `precondition`). Only the single navigation step may repeat across tests. Before finishing, review the
    whole file for duplicates (the `qa-manual-reviewer` agent does this) and merge or delete.
-7. **One feature per test**, but one test may hold all of that feature's boundary/error variants as steps.
+7. **Verify storage through the app, never the database.** If a step saves something, the next step retrieves it the way a user or API would (reload, reopen, search, view the record) and checks the value. Do not write steps like "check the table" or "query the database": if the app cannot show it, it is not a manual test; report it as a gap instead. Stored-and-retrievable data should already be covered by an automated test.
+8. **One feature per test**, but one test may hold all of that feature's boundary/error variants as steps.
 
 ## Style
 
