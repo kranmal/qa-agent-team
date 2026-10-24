@@ -81,7 +81,7 @@ const CSS = `
   .k-happy{background:#0969da}.k-boundary{background:#6f42c1}.k-error{background:#bc4c00}.k-a11y{background:#1a7f37}
   .test.t-boundary{border-left:5px solid #6f42c1}.test.t-error{border-left:5px solid #bc4c00}.test.t-happy{border-left:5px solid #0969da}.test.t-a11y{border-left:5px solid #1a7f37}
   .intro{background:#f7f8fb;border-left:4px solid #6f42c1;padding:8px 12px;margin:6px 0 10px;border-radius:0 6px 6px 0}
-  .intro.e{border-left-color:#bc4c00} td.data{font:9px ui-monospace,Menlo,monospace;color:#334} .ok{color:#1a7f37;font-weight:700} .zero{color:#cf222e;font-weight:700}
+  .intro.e{border-left-color:#bc4c00} a.tl{color:#0b57d0;text-decoration:underline} a.back{float:right;font-size:9px;font-weight:400;color:#57606a;text-decoration:none} td.data{font:9px ui-monospace,Menlo,monospace;color:#334} .ok{color:#1a7f37;font-weight:700} .zero{color:#cf222e;font-weight:700}
   .toc td{border:none;padding:2px 6px}
 `;
 const badge = (s: string) => `<span class="badge ${esc(s)}">${esc(s.toUpperCase())}</span>`;
@@ -143,8 +143,17 @@ const stepsHtml = (r: Result) => {
   }).join('');
 };
 
+// Stable in-document anchor per test, so summary tables can link to its screenshots.
+const anchors = new Map<Result, string>();
+const anchor = (r: Result) => {
+  let id = anchors.get(r);
+  if (!id) { id = `t-${anchors.size + 1}-${`${r.project}-${r.file}-${r.line}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}`; anchors.set(r, id); }
+  return id;
+};
+const link = (r: Result, text: string) => `<a class="tl" href="#${anchor(r)}">${text}</a>`;
+
 const testBlock = (r: Result, extra = '') => `
-  <div class="test t-${kindOf(r)}"><h3>${kindChip(kindOf(r))} ${badge(r.status)} ${esc(r.title.replace(/\[[A-Z0-9-]+\]\s*/, '').replace(/@\w+\s*/g, ''))}</h3>
+  <div class="test t-${kindOf(r)}" id="${anchor(r)}"><h3>${kindChip(kindOf(r))} ${badge(r.status)} ${esc(r.title.replace(/\[[A-Z0-9-]+\]\s*/, '').replace(/@\w+\s*/g, ''))} <a class="back" href="#top">↑ top</a></h3>
   <div class="muted">Requirement <b>${esc(r.covers.join(', ') || '-')}</b> · ${esc(r.project)} · ${esc(r.file)}:${r.line} · ${(r.durationMs / 1000).toFixed(1)}s ${tags(r.tags)}</div>
   ${r.error ? `<pre class="err">${esc(r.error.slice(0, 1500))}</pre>` : ''}
   <h4>Test data used</h4>${dataTable(r.attachments.find((a) => a.name === 'test-data'))}
@@ -172,7 +181,7 @@ function assuranceHtml(results: Result[], cov: any): string {
   for (const [k, title, cls] of [['boundary', 'Boundary tests - data and outcome', ''], ['error', 'Error-handling tests - data and outcome', 'e']] as const) {
     const set = by(k);
     h += `<h3 style="margin-top:16px">${title}</h3>` + (set.length ? `<table><tr><th>Result</th><th>Req</th><th>Test</th><th>Data used</th></tr>${set.map((r) =>
-      `<tr><td>${badge(r.status)}</td><td>${esc(r.covers.join(', '))}</td><td>${esc(r.title.replace(/\[[A-Z0-9-]+\]\s*/, '').replace(/@\w+\s*/g, ''))}</td><td class="data">${esc(dataSummary(r))}</td></tr>`).join('')}</table>` : '<p class="muted">None.</p>');
+      `<tr><td>${badge(r.status)}</td><td>${esc(r.covers.join(', '))}</td><td>${link(r, esc(r.title.replace(/\[[A-Z0-9-]+\]\s*/, '').replace(/@\w+\s*/g, '')))}</td><td class="data">${esc(dataSummary(r))}</td></tr>`).join('')}</table>` : '<p class="muted">None.</p>');
   }
   return h;
 }
@@ -240,7 +249,7 @@ function functionalHtml(): string {
     if (cov.summary.unmappedSourceFiles.length) html += `<p class="err">Unmapped source files: ${cov.summary.unmappedSourceFiles.map(esc).join(', ')}</p>`;
   }
   html += `<h2>Results summary</h2><table><tr><th>Status</th><th>Kind</th><th>Level</th><th>Test</th><th>Covers</th><th>Time</th></tr>${[
-    ...results.map((r) => `<tr><td>${badge(r.status)}</td><td>${kindChip(kindOf(r))}</td><td>${esc(r.project)}</td><td>${esc(r.title)}</td><td>${esc(r.covers.join(', '))}</td><td>${(r.durationMs / 1000).toFixed(1)}s</td></tr>`),
+    ...results.map((r) => `<tr><td>${badge(r.status)}</td><td>${kindChip(kindOf(r))}</td><td>${esc(r.project)}</td><td>${link(r, esc(r.title))}</td><td>${esc(r.covers.join(', '))}</td><td>${(r.durationMs / 1000).toFixed(1)}s</td></tr>`),
     ...unit.map((u) => `<tr><td>${badge(u.status)}</td><td></td><td>unit</td><td>${esc(u.title)}</td><td></td><td>${(u.ms / 1000).toFixed(2)}s</td></tr>`),
   ].join('')}</table>`;
   for (const project of ['e2e', 'api']) {
@@ -274,7 +283,7 @@ function a11yHtml(): string {
   html += `<h2>Violations by rule</h2>${rules.size ? `<table><tr><th>Rule</th><th>Impact</th><th>Elements</th><th>Description</th><th>WCAG / tags</th></tr>${[...rules.values()].sort((a, b) => impacts.indexOf(a.impact) - impacts.indexOf(b.impact)).map((v) =>
     `<tr><td>${esc(v.id)}<br><a href="${esc(v.helpUrl)}">help</a></td><td>${badge(v.impact)}</td><td>${v.count}</td><td>${esc(v.help)}</td><td>${esc((v.tags ?? []).filter((t: string) => /wcag|best/.test(t)).join(', '))}</td></tr>`).join('')}</table>` : '<p>No violations found.</p>'}`;
   html += `<h2>Per page / state</h2><table><tr><th>Page / state</th><th>URL</th><th>Violations</th><th>Passed rules</th><th>Needs manual review</th></tr>${scans.map((s) =>
-    `<tr><td>${esc(s.name)}</td><td>${esc(s.res.url)}</td><td class="${(s.res.violations ?? []).length ? 'err' : ''}">${(s.res.violations ?? []).length}</td><td>${(s.res.passes ?? []).length}</td><td>${(s.res.incomplete ?? []).length}</td></tr>`).join('')}</table>`;
+    `<tr><td>${link(s.r, esc(s.name))}</td><td>${esc(s.res.url)}</td><td class="${(s.res.violations ?? []).length ? 'err' : ''}">${(s.res.violations ?? []).length}</td><td>${(s.res.passes ?? []).length}</td><td>${(s.res.incomplete ?? []).length}</td></tr>`).join('')}</table>`;
   html += `<h2 class="pb">Detail</h2>` + results.map((r) => {
     const sc = scans.filter((s) => s.r === r);
     const detail = sc.map((s) => (s.res.violations ?? []).map((v: any) => `
@@ -301,7 +310,7 @@ function bugsHtml(): string {
     return `<ol>${steps.map((x) => `<li>${esc(x)}</li>`).join('') || '<li>See the test steps in the QA report.</li>'}</ol>${data ? `<h4>Test data</h4>${dataTable(data)}` : ''}`;
   };
   const block = (id: string, sev: string, title: string, r: Result | undefined, summary: string, expected: string, actual: string, confirmed: boolean, own?: string[]) => `
-    <div class="test t-error pb"><h3><span class="kind k-error">${esc(id)}</span> <span class="badge ${esc(sev === 'critical' || sev === 'high' ? 'failed' : 'flaky')}">${esc(sev.toUpperCase())}</span> ${esc(title)}</h3>
+    <div class="test t-error pb" id="bug-${esc(id)}"><h3><span class="kind k-error">${esc(id)}</span> <span class="badge ${esc(sev === 'critical' || sev === 'high' ? 'failed' : 'flaky')}">${esc(sev.toUpperCase())}</span> ${esc(title)}</h3>
     <div class="muted">${confirmed ? 'Confirmed app defect' : 'Unconfirmed: needs triage (may be a test issue)'} · ${r ? `Requirement ${esc(r.covers.join(', ') || '-')} · test ${esc(r.file)}:${r.line}` : ''} · Environment: Chromium 1280x800, ${esc(baseURL)}</div>
     <h4>Description</h4><p>${esc(summary)}</p>
     <h4>How to recreate</h4>${r ? repro(r, own) : '<p>See the evidence below.</p>'}
@@ -324,7 +333,7 @@ function bugsHtml(): string {
   const total = confirmed.length + byRule.size;
   html += cover('Bug Report', [['Confirmed defects', confirmed.length], ['Accessibility defects', byRule.size], ['Unconfirmed failures', unconfirmed.length],
     ...SEV.map((s) => [s, confirmed.filter((c) => c.b.severity === s).length] as [string, number])]);
-  html += `<h2>Summary</h2><table><tr><th>ID</th><th>Severity</th><th>Defect</th><th>Type</th></tr>${confirmed.map((c) => `<tr><td>${esc(c.b.id)}</td><td>${esc(c.b.severity)}</td><td>${esc(c.b.title)}</td><td>Functional</td></tr>`).join('')}${[...byRule.values()].map((e, i) =>
+  html += `<h2>Summary</h2><table><tr><th>ID</th><th>Severity</th><th>Defect</th><th>Type</th></tr>${confirmed.map((c) => `<tr><td><a class="tl" href="#bug-${esc(c.b.id)}">${esc(c.b.id)}</a></td><td>${esc(c.b.severity)}</td><td>${esc(c.b.title)}</td><td>Functional</td></tr>`).join('')}${[...byRule.values()].map((e, i) =>
     `<tr><td>A11Y-BUG-${String(i + 1).padStart(2, '0')}</td><td>${esc(e.v.impact)}</td><td>${esc(e.v.help)} (${esc(e.v.id)})</td><td>Accessibility</td></tr>`).join('')}</table>`;
   if (!total) html += '<p class="muted">No confirmed defects in this run.</p>';
   html += confirmed.map((c) => block(c.b.id, c.b.severity, c.b.title, c.r, c.b.summary, c.b.expected, c.b.actual, true, c.b.steps)).join('');
@@ -339,7 +348,7 @@ function bugsHtml(): string {
 // ---------- render ----------
 (async () => {
   const body = mode === 'a11y' ? a11yHtml() : mode === 'bugs' ? bugsHtml() : functionalHtml();
-  const html = `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${body}</body></html>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body id="top">${body}</body></html>`;
   const outDir = path.join(QA, 'reports');
   fs.mkdirSync(outDir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
