@@ -7,6 +7,8 @@
 3. **Unit (Vitest, `tests/unit`)** - logic that no UI/API path can reach reliably: pure functions, parsers, calculators, branches behind feature flags, error branches.
 4. **Manual (Zephyr Scale)** - only when automation is genuinely impossible: real email/SMS/push, third-party captcha or 3-D Secure, physical devices/hardware, native OS dialogs, visual judgement, live production data. Record the reason in `manualReason`.
 
+**Persistence is never a manual test.** "Was it stored?" is proved by retrieving it through the app: save, then reload, reopen, search or GET it back and assert the value (e2e or API). Never write a test, automated or manual, that inspects database tables, files or logs by hand; if the app cannot read it back, that is a finding to report (or a read endpoint/test seam to request), not a manual check. Direct DB reads are allowed only inside automated tests for something no user or API path exposes (for example a hashed password or an audit row), via a test helper.
+
 Before demoting to a lower level, try: `page.route()` to simulate failures, `context.setOffline()`,
 `page.clock` for time, `storageState` for auth, `context.grantPermissions()`, `request.newContext()` for
 seeding, test-mode keys for payment/email providers, and seeded data via API or DB scripts.

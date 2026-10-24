@@ -13,7 +13,8 @@ You are the single editor of `qa/manual/manual-tests.json` for this pass. Read `
 4. **Route.** Each test's first step is a `nav: true` step from logging on (or from the URL when there is no login) to the exact screen, with real menu/page names.
 5. **Data.** Every input step has `data` naming the value and why (boundary / error / blackbox / whitebox) and a `technique` field.
 6. **Expected results.** One observable outcome per step, under 20 words, exact text or state. Rewrite vague ones.
-7. Keep every `covers` id that was covered before. If merging would drop one, keep the test.
+7. **No database checks.** Delete or rewrite any step that asks the tester to look in a table, query a database or read files/logs. Replace it with retrieval through the app (reload, reopen, search, view). If persistence already has an automated test, drop the manual step; if nothing in the app can show the data, note it as a gap in `review-notes.md`.
+8. Keep every `covers` id that was covered before. If merging would drop one, keep the test.
 
 ## Then
 Run `npm run zephyr:export` in `qa/` and fix any warnings (they include a cross-test duplicate-step check). Write `qa/manual/review-notes.md`: tests before and after, steps before and after, each duplicate removed (test and step), each test merged or rewritten, and any rule you could not cover.
