@@ -271,6 +271,24 @@ function cancelRun(id) {
   return summarise(id);
 }
 
+// Deletes this tool's run history (logs, cost records). Reports are kept: any run that still
+// has report files is left in place so they stay reachable, and workspaces are not touched.
+// Never touches a project folder you pointed it at, and refuses while a run is active.
+function clearAll() {
+  const ids = fs.readdirSync(RUNS_DIR);
+  if (ids.some((id) => { const m = readJson(path.join(runDir(id), 'run.json')); return m && !m.cancelled && !fs.existsSync(path.join(runDir(id), 'exit')) && m.pid && alive(m.pid); })) {
+    throw Object.assign(new Error('A run is still in progress. Cancel it first, then clear.'), { status: 409 });
+  }
+  let runs = 0, kept = 0;
+  for (const id of ids) {
+    const m = readJson(path.join(runDir(id), 'run.json'));
+    if (m && m.cwd && listReports(m.cwd).length) { kept++; continue; }
+    fs.rmSync(runDir(id), { recursive: true, force: true });
+    runs++;
+  }
+  return { runs, kept };
+}
+
 // ---------- reports ----------
 const REPORT_DIRS = ['reports', 'manual', 'coverage', 'bugs'];
 const REPORT_EXT = new Set(['.pdf', '.csv', '.md', '.json']);
@@ -393,6 +411,17 @@ function handleHttp(req, res) {
     }
     if ((m = p.match(/^\/api\/runs\/([\w-]+)\/cancel$/))) {
       try { return json(res, 200, cancelRun(m[1])); } catch (e) { return json(res, 404, { error: e.message }); }
+    }
+    if ((m = p.match(/^\/api\/runs\/([\w-]+)\/delete-report$/))) {
+      return readBody(req).then((b) => {
+        const full = resolveReportFile(m[1], String(b.path || ''));
+        if (!full) return json(res, 404, { error: 'report not found' });
+        fs.rmSync(full, { force: true });
+        json(res, 200, { deleted: b.path });
+      }).catch((e) => json(res, 400, { error: e.message }));
+    }
+    if (p === '/api/clear') {
+      try { return json(res, 200, clearAll()); } catch (e) { return json(res, e.status || 500, { error: e.message }); }
     }
   }
   json(res, 404, { error: 'not found' });
